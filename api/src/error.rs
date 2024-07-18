@@ -1,6 +1,7 @@
 use axum::response::{IntoResponse, Response};
 use migration::DbErr;
 use thiserror::Error;
+use tokio::io;
 
 use crate::response::CustomResponse;
 
@@ -14,6 +15,8 @@ pub enum CustomError {
     Validation(#[from] validator::ValidationErrors),
     #[error(transparent)]
     FormRejection(#[from] axum::extract::rejection::FormRejection),
+    #[error(transparent)]
+    Io(#[from] io::Error),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

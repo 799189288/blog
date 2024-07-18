@@ -1,6 +1,6 @@
 use axum::{
     async_trait,
-    extract::{rejection::FormRejection, FromRequest, FromRequestParts, Request, State},
+    extract::{rejection::FormRejection, FromRequest, FromRequestParts, Multipart, Request, State},
     http::{request::Parts, StatusCode},
     middleware::from_extractor,
     response::{Html, IntoResponse},
@@ -28,9 +28,11 @@ use service::sea_orm::{
     TryIntoModel,
 };
 use std::{env, time::Duration};
+use util::stream_to_file;
 use validator::Validate;
 mod error;
 mod response;
+mod util;
 pub type Result<T> = std::result::Result<T, CustomError>;
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
@@ -53,9 +55,7 @@ pub async fn main() -> anyhow::Result<()> {
         .to_string(PostgresQueryBuilder);
     db.execute(Statement::from_string(DatabaseBackend::Postgres, stmt))
         .await?;
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000")
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
     let auth_route = Router::new()
         .route("/blog/new", post(new_blog))
         .route_layer(from_extractor::<Claims>());
@@ -68,6 +68,7 @@ pub async fn main() -> anyhow::Result<()> {
         .route("/tag/new", post(new_tag))
         .route("/category/new", post(new_category))
         .route("/category/list", get(get_categories))
+        .route("/upload", post(upload_file))
         .with_state(db)
         .fallback(handle_rejection);
     axum::serve(listener, app).await?;
@@ -154,14 +155,14 @@ async fn new_tag(
     Form(form): Form<tag::InsertModel>,
 ) -> Result<Json<CustomResponse<tag::Model>>> {
     let data = service::mutation::Mutation::create_tag(&db, form.into()).await?;
-    Ok(Json(CustomResponse::ok(data.try_into_model().unwrap())))
+    Ok(Json(CustomResponse::ok(data)))
 }
 
 async fn new_blog(
     State(db): State<DatabaseConnection>,
     claims: Claims,
     Json(form): Json<blog::ReqModel>,
-) -> Result<Json<CustomResponse<blog::Model>>> {
+) -> Result<Json<CustomResponse<CombineBlog>>> {
     let insert_form = InsertModel {
         user_id: claims.user_id,
         id: form.id,
@@ -172,14 +173,38 @@ async fn new_blog(
     };
     let data = service::mutation::Mutation::create_blog(&db, insert_form.into()).await?;
     let blog_model = data.try_into_model().unwrap();
-    for tag_id in form.tags {
-        let blog_tag = blog_tag::Model {
-            blog_id: blog_model.id,
-            tag_id,
-        };
-        service::mutation::Mutation::create_blog_tag(&db, blog_tag.into()).await?;
+    let blog_tag_list: Vec<Uuid> = service::query::Query::get_tag_list(&db, blog_model.id)
+        .await?
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+
+    println!("{:?}", blog_tag_list);
+    for blog_tag in blog_tag_list.iter() {
+        if !form.tags.contains(blog_tag) {
+            service::mutation::Mutation::delete_blog_tag(&db, *blog_tag).await?;
+        }
     }
-    Ok(Json(CustomResponse::ok(blog_model)))
+    for tag_id in form.tags.iter() {
+        if !blog_tag_list.contains(tag_id) {
+            let blog_tag = blog_tag::Model {
+                blog_id: blog_model.id,
+                tag_id: *tag_id,
+            };
+            service::mutation::Mutation::create_blog_tag(&db, blog_tag.into()).await?;
+        };
+    }
+    let tags = service::query::Query::get_tag_list(&db, blog_model.id)
+        .await?
+        .into_iter()
+        .map(|i| i.name.unwrap())
+        .collect();
+    let category = service::query::Query::query_blog_category(&db, blog_model.category_id).await?;
+    Ok(Json(CustomResponse::ok(CombineBlog {
+        blog: blog_model,
+        tags,
+        category: category.unwrap().name,
+    })))
 }
 
 async fn new_user(
@@ -230,4 +255,12 @@ async fn get_categories(
 ) -> Result<Json<CustomResponse<Vec<category::TreeModel>>>> {
     let list = service::query::Query::query_category(&db).await?;
     Ok(Json(CustomResponse::ok(list)))
+}
+
+async fn upload_file(mut multipart: Multipart) -> Result<()> {
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.file_name().unwrap().to_string();
+        stream_to_file(&name, field).await?;
+    }
+    Ok(())
 }

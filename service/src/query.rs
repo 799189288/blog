@@ -5,6 +5,7 @@ use ::entity::{
     blog_tag, category, tag, user,
 };
 use sea_orm::*;
+use uuid::Uuid;
 
 pub struct Query {}
 
@@ -33,6 +34,20 @@ impl Query {
             .collect();
         Ok(list)
     }
+    pub async fn get_tag_list(db: &DbConn, id: Uuid) -> Result<Vec<tag::Model>, DbErr> {
+        let tag_ids: Vec<Uuid> = blog_tag::Entity::find()
+            .filter(blog_tag::Column::BlogId.eq(id))
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|i| i.tag_id)
+            .collect();
+        let tags = tag::Entity::find()
+            .filter(tag::Column::Id.is_in(tag_ids))
+            .all(db)
+            .await?;
+        Ok(tags)
+    }
     pub async fn check_user_exist(
         db: &DbConn,
         form: user::LoginModel,
@@ -43,6 +58,16 @@ impl Query {
             .one(db)
             .await?;
         Ok(user)
+    }
+    pub async fn query_blog_category(
+        db: &DbConn,
+        id: Uuid,
+    ) -> Result<Option<category::Model>, DbErr> {
+        let category = category::Entity::find()
+            .filter(category::Column::Id.eq(id))
+            .one(db)
+            .await?;
+        Ok(category)
     }
     pub async fn query_category(db: &DbConn) -> Result<Vec<category::TreeModel>, DbErr> {
         let categories: Vec<category::TreeModel> = category::Entity::find()

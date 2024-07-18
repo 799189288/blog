@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 service = { path = "../service" }
 tokio = { version = "1.34.0", features = ["full"] }
-axum = "0.7.1"
+axum = { version = "0.7.1", features = ["multipart"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.0", features = ["fs"] }
@@ -24,3 +24,5 @@ migration = { path = "../migration" }
 chrono = "0.4.38"
 thiserror = "1.0"
 validator = { version = "0.14.0", features = ["derive"] }
+tokio-util = { version = "0.7", features = ["io"] }
+futures = "0.3"
