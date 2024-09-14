@@ -1,8 +1,9 @@
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::error::CustomError;
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, ToSchema)]
 pub struct CustomResponse<T: Serialize> {
     pub data: Option<T>,
     pub message: String,
@@ -10,6 +11,7 @@ pub struct CustomResponse<T: Serialize> {
 }
 
 pub type JsonResponse<T> = Json<CustomResponse<T>>;
+pub type Result<T> = std::result::Result<T, CustomError>;
 
 impl<T: Serialize> CustomResponse<T> {
     pub fn new(data: Option<T>, message: &str, code: i32) -> Self {
@@ -35,5 +37,3 @@ impl<T: Serialize> CustomResponse<T> {
         Json(self)
     }
 }
-
-

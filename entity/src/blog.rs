@@ -3,8 +3,9 @@
 use super::sea_orm_active_enums::StatusEnum;
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "blog")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
@@ -19,7 +20,7 @@ pub struct Model {
     pub status: Option<StatusEnum>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct CombineBlog {
     #[serde(flatten)]
     pub blog: Model,
