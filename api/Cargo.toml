@@ -26,5 +26,5 @@ thiserror = "1.0"
 validator = { version = "0.14.0", features = ["derive"] }
 tokio-util = { version = "0.7", features = ["io"] }
 futures = "0.3"
-utoipa = { version = "5.0.0-beta.0", features = ["axum_extras", "debug"] }
-utoipa-scalar = { version = "0.2.0-beta.0", features = ["axum"] }
+utoipa = { version = "5.0.1", features = ["axum_extras", "debug", "uuid"] }
+utoipa-scalar = { version = "0.2.0", features = ["axum"] }

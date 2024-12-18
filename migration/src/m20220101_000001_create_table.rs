@@ -1,5 +1,5 @@
-use extension::postgres::Type;
-use sea_orm::{EnumIter, Iterable};
+use extension::postgres::{Extension, Type};
+use sea_orm::{DatabaseBackend, EnumIter, Iterable, Statement};
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -7,6 +7,14 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        let stmt = Extension::create()
+            .name(r#""uuid-ossp""#)
+            .if_not_exists()
+            .to_string(PostgresQueryBuilder);
+        manager
+            .get_connection()
+            .execute(Statement::from_string(DatabaseBackend::Postgres, stmt))
+            .await?;
         manager
             .create_type(
                 Type::create()
@@ -47,7 +55,12 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .extra("DEFAULT uuid_generate_v4()"),
                     )
-                    .col(ColumnDef::new(User::Username).string().not_null().unique_key())
+                    .col(
+                        ColumnDef::new(User::Username)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
                     .col(ColumnDef::new(User::Password).string().not_null())
                     .col(ColumnDef::new(User::Email).string().not_null())
                     .col(ColumnDef::new(User::Avatar).text())

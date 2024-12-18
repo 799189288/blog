@@ -2,6 +2,7 @@
 
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "category")]
@@ -29,7 +30,7 @@ impl From<Model> for TreeModel {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct InsertModel {
     pub id: Option<Uuid>,

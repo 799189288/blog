@@ -1,18 +1,22 @@
 use crate::auth::Claims;
 use crate::response::{CustomResponse, Result};
+use axum::extract::Query;
 use axum::middleware::from_extractor;
+use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::Router;
 use axum::{extract::State, Form, Json};
+use entity::blog::BlogQueryParams;
 use entity::{blog, blog_tag, tag};
 use entity::{blog::CombineBlog, category};
+use serde::{Deserialize, Serialize};
 use service::sea_orm::{prelude::Uuid, DatabaseConnection, TryIntoModel};
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(get_blogs, new_blog, new_category, get_categories, new_tag),
-    components(schemas(CombineBlog, blog::Model))
+    paths(get_blogs, new_blog, new_category, get_categories, new_tag, test),
+    components(schemas(Test))
 )]
 pub(crate) struct ArticleApi;
 
@@ -20,13 +24,14 @@ pub(crate) struct ArticleApi;
     get,
     path = "/get/blogs",
     responses(
-        (status = 200, description = "List all blogs successfully", body = [CombineBlog] )
+        (status = 200, description = "List all blogs successfully" )
     )
 )]
 pub async fn get_blogs(
     State(db): State<DatabaseConnection>,
+    Query(params): Query<BlogQueryParams>,
 ) -> Result<Json<CustomResponse<Vec<CombineBlog>>>> {
-    let list = service::query::Query::get_blog_list(&db).await?;
+    let list = service::query::Query::get_blog_list(params, &db).await?;
     Ok(Json(CustomResponse::ok(list)))
 }
 
@@ -34,7 +39,7 @@ pub async fn get_blogs(
     post,
     path = "/blog/new",
     responses(
-        (status = 200, description = "New Blog", body = [CombineBlog])
+        (status = 200, description = "New Blog")
     )
 )]
 pub async fn new_blog(
@@ -90,7 +95,7 @@ pub async fn new_blog(
     get,
     path = "/category/new",
     responses(
-        (status = 200, description = "Create A Category", body = Category::Model)
+        (status = 200, description = "Create A Category")
     )
 )]
 pub async fn new_category(
@@ -104,7 +109,7 @@ pub async fn new_category(
 
 #[utoipa::path(
     get,
-    path = "/category/list",
+    path = "/get/categories",
     responses(
         (status = 200, description = "List all Categories")
     )
@@ -120,7 +125,7 @@ pub async fn get_categories(
     post,
     path = "/tag/new",
     responses(
-        (status = 200, description = "New Tag", body = tag::Model)
+        (status = 200, description = "New Tag")
     )
 )]
 pub async fn new_tag(
@@ -129,6 +134,24 @@ pub async fn new_tag(
 ) -> Result<Json<CustomResponse<tag::Model>>> {
     let data = service::mutation::Mutation::create_tag(&db, form.into()).await?;
     Ok(Json(CustomResponse::ok(data)))
+}
+
+#[derive(Deserialize, Serialize, Debug, ToSchema)]
+pub struct Test {
+    name: String,
+    age: Option<i32>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/test",
+    responses(
+        (status = 200, description = "test")
+    )
+)]
+pub async fn test(Form(form): Form<Test>) -> impl IntoResponse {
+    println!("{:?}", form);
+    Json(form)
 }
 
 pub fn route() -> Router<DatabaseConnection> {
@@ -140,6 +163,7 @@ pub fn route() -> Router<DatabaseConnection> {
         .route("/get/blogs", get(get_blogs))
         .route("/tag/new", post(new_tag))
         .route("/category/new", post(new_category))
-        .route("/category/list", get(get_categories));
+        .route("/get/categories", get(get_categories))
+        .route("/test", get(test));
     router
 }

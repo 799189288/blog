@@ -2,6 +2,7 @@
 
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "tag")]
@@ -26,7 +27,7 @@ impl Into<ActiveModel> for InsertModel {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct InsertModel {
     pub id: Option<Uuid>,
     pub name: Option<String>,

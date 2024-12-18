@@ -1,17 +1,27 @@
 use std::iter::zip;
 
 use ::entity::{
-    blog::{self, CombineBlog},
+    blog::{self, BlogQueryParams, CombineBlog},
     blog_tag, category, tag, user,
 };
 use sea_orm::*;
 use uuid::Uuid;
-
 pub struct Query {}
 
 impl Query {
-    pub async fn get_blog_list(db: &DbConn) -> Result<Vec<CombineBlog>, DbErr> {
-        let blogs: Vec<blog::Model> = blog::Entity::find().all(db).await?;
+    pub async fn get_blog_list(
+        params: BlogQueryParams,
+        db: &DbConn,
+    ) -> Result<Vec<CombineBlog>, DbErr> {
+        let blogs: Vec<blog::Model>;
+        if let Some(category_id) = params.category_id {
+            blogs = blog::Entity::find()
+                .filter(blog::Column::CategoryId.eq(category_id))
+                .all(db)
+                .await?;
+        } else {
+            blogs = blog::Entity::find().all(db).await?;
+        }
         let categorys: Vec<Option<category::Model>> = blogs.load_one(category::Entity, db).await?;
         let tags: Vec<Vec<tag::Model>> = blogs
             .load_many_to_many(tag::Entity, blog_tag::Entity, db)

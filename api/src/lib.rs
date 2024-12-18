@@ -8,9 +8,8 @@ mod validate;
 
 use axum::{http::StatusCode, response::IntoResponse, Router};
 use dotenvy::dotenv;
-use migration::{extension::postgres::Extension, ConnectionTrait, PostgresQueryBuilder};
 use openapi::ApiDoc;
-use service::sea_orm::{ConnectOptions, Database, DatabaseBackend, Statement};
+use service::sea_orm::{ConnectOptions, Database};
 use std::{env, time::Duration};
 use tower_http::cors::{Any, CorsLayer};
 use utoipa::OpenApi;
@@ -30,14 +29,8 @@ pub async fn main() -> anyhow::Result<()> {
         .sqlx_logging(true);
 
     let db = Database::connect(opt).await.unwrap();
-    // 先创建uuid扩展
-    let stmt = Extension::create()
-        .name(r#""uuid-ossp""#)
-        .if_not_exists()
-        .to_string(PostgresQueryBuilder);
-    db.execute(Statement::from_string(DatabaseBackend::Postgres, stmt))
-        .await?;
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    println!("your http client is listening on http://localhost:8000/");
     let app = Router::new()
         .merge(Scalar::with_url("/", ApiDoc::openapi()))
         .nest("/api/v1", v1::article::route())
